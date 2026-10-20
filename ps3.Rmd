@@ -1,0 +1,367 @@
+---
+title: "Problem Set 3"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+### Introduction
+
+You've just been hired as a junior data scientist at TechStart Analytics, a
+consulting firm for early-stage companies. Your first client is **CloudFit**, a
+fitness app. Its CEO, Sarah, wants to understand how people use the app and,
+above all, **which users will cancel after their free trial**.
+
+This problem set covers statistical learning, linear regression,
+classification, logistic regression, K-nearest neighbors, and
+cross-validation (Days 9–14). It is **conceptual**: you won't fit any models.
+Instead, you'll read output that CloudFit's analysts already produced and
+explain what it means, the same skill the exams test. It should take about
+**75 minutes**.
+
+### Instructions
+
+* This problem set is mostly reading tables and output. To see them formatted
+  while you work, switch RStudio to **Visual** mode: click **Visual** at the top
+  left of the editor (next to **Source**), or press Ctrl+Shift+F4
+  (Cmd+Shift+F4 on a Mac). Click **Source** to switch back.
+* Write your answers in the space after each question. Short-answer questions
+  want 2–4 sentences, not an essay.
+* Use the R chunks as a calculator wherever a question asks for a number, so
+  your work is visible. Show the formula, not just the result.
+* Knit this document before submitting. It should knit without errors, and your
+  `.md` output must be visible on GitHub. If I can't see your output, I can't
+  grade it.
+
+### The data
+
+CloudFit's user records include:
+
+| Variable | Meaning |
+|---|---|
+| `age` | user's age, 18–64 |
+| `workouts` | workouts logged per week, 0–7 |
+| `premium` | number of premium features the user has tried, 0–6 |
+| `app_minutes` | average minutes per day spent in the app |
+| `churn` | `Yes` if the user **cancelled** after the free trial, `No` if they renewed |
+
+---
+
+## Part 1: The Big Picture (12 minutes)
+
+### Question 1.1: What kind of problem is it?
+
+Sarah has four questions. For each one, say whether it is **supervised** or
+**unsupervised**. If it's supervised, also say whether it is **regression** or
+**classification**, and whether the main goal is **prediction** or
+**inference**. One sentence of reasoning each.
+
+a) "Which of this week's free-trial users are going to cancel?"
+
+b) "If we get a user to do one more workout a week, how many more minutes a day
+   will they spend in the app?"
+
+c) "Are there natural groups of users with similar habits?"
+
+d) "How many minutes a day will a brand-new user spend in the app?"
+
+*Your answers:*
+
+### Question 1.2: How flexible should the model be?
+
+A previous intern tried to predict `app_minutes` from `age` alone. The intern
+drew a random training set of 60 users, fit polynomials in `age` of different
+degrees, and measured the MSE on 2,000 other users, then repeated this for 200
+different training sets and summarized the results. (Degree 0 means predicting the
+average for everyone.)
+
+| Degree | Training MSE (average) | Test MSE (median) |
+|---|---|---|
+| 0 | 467 | 470 |
+| 1 | 461 | 476 |
+| 2 | 419 | 447 |
+| 4 | 405 | 464 |
+| 8 | 377 | 508 |
+
+(The test column reports the median because a few degree-8 fits produced wild
+predictions that would swamp an average. That is itself a sign of high
+variance.)
+
+a) Training MSE falls every time the degree rises. Explain why it has to.
+
+b) Which degree would you recommend, and why?
+
+c) Compare degree 2 and degree 8. Which has more **bias**? Which has more
+   **variance**? Explain what would happen to each fitted curve if the intern
+   drew a different set of 60 users.
+
+d) The straight line (degree 1) predicts new users **worse** than just guessing
+   the average (degree 0). Degree 2 does better than both. What does that tell
+   you about the shape of the relationship between age and app minutes?
+   Sketch it in words.
+
+*Your answers:*
+
+---
+
+## Part 2: Linear Regression (15 minutes)
+
+### Question 2.1: Reading the output
+
+An analyst regressed `app_minutes` on `age`, `workouts`, and `premium` for a
+random sample of 300 users:
+
+```
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept) 29.28658    3.32412   8.810  < 2e-16 ***
+age         -0.03096    0.06738  -0.460    0.646
+workouts     4.08731    0.63780   6.408 5.78e-10 ***
+premium      7.64418    0.97484   7.842 8.12e-14 ***
+
+Residual standard error: 16.73 on 296 degrees of freedom
+Multiple R-squared:  0.3965
+```
+
+a) Write the fitted regression equation.
+
+b) Interpret the `workouts` coefficient in a sentence Sarah would understand.
+   Be precise about what is being held fixed.
+
+c) Construct an approximate 95% confidence interval for the `premium`
+   coefficient. Is there evidence that premium features are related to app
+   usage? Name **two** numbers in the output that tell you.
+
+d) Explain the residual standard error and the R-squared to Sarah, each in one
+   sentence, in the units of the problem.
+
+e) Predict daily app minutes for a 25-year-old who works out 4 times a week and
+   has tried 2 premium features.
+
+```{r q2_1}
+# Your calculations here
+
+```
+
+*Your answers:*
+
+### Question 2.2: "So age doesn't matter?"
+
+Sarah sees the p-value of 0.646 on `age` and concludes: *"Great, age has
+nothing to do with how much people use the app."* Is she right? Use what you
+found in Question 1.2 (d) in your answer.
+
+*Your answer:*
+
+### Question 2.3: One predictor or three?
+
+The analyst also ran a regression with `premium` as the only predictor:
+
+```
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept)  36.0327     1.4400   25.02   <2e-16 ***
+premium      10.6155     0.9119   11.64   <2e-16 ***
+```
+
+In this sample, `workouts` and `premium` have a correlation of 0.47.
+
+a) The `premium` slope is 10.6 here but 7.6 in Question 2.1. Explain why it is
+   larger when `workouts` is left out.
+
+b) Sarah is deciding whether to promote premium features. She wants to know:
+   *"If a user starts using one more premium feature, how many more minutes
+   will they spend in the app?"* Which estimate, 10.6 or 7.6, is the better
+   answer? Why?
+
+*Your answers:*
+
+---
+
+## Part 3: Classification (20 minutes)
+
+Now for Sarah's big question: **which free-trial users will cancel?** Across
+CloudFit, 27% of trial users cancel. CloudFit wants to send a retention offer
+to users who are likely to cancel, so throughout Part 3, **positive = churn
+(`Yes`)**.
+
+### Question 3.1: Why not linear regression?
+
+The intern coded churn as 1 (`Yes`) and 0 (`No`) and fit a linear regression:
+
+```
+predicted churn = 0.623 - 0.086 * workouts - 0.074 * premium
+```
+
+a) Compute the prediction for a user who works out 7 times a week and has
+   tried 2 premium features. If you read it as a probability of cancelling,
+   what's wrong with it?
+
+b) About 11% of users get a prediction below 0. Explain why this happens, and
+   why it means we need a method built for categories.
+
+```{r q3_1}
+# Your calculations here
+
+```
+
+*Your answers:*
+
+### Question 3.2: The confusion matrix
+
+An analyst trained a logistic regression on 4,000 users and tested it on the
+other 1,000. Predicting `Yes` when the model's churn probability is above 0.5,
+the test-set results are:
+
+|                | Predicted No | Predicted Yes |
+|---|---|---|
+| **Actually No**  | 641 | 88 |
+| **Actually Yes** | 141 | 130 |
+
+a) Identify TP, FP, FN, and TN. Then compute the model's **accuracy**,
+   **recall**, **precision**, **specificity**, **balanced accuracy**, and
+   **F1 score**.
+
+b) A competitor's model simply predicts that **nobody** cancels. What is its
+   accuracy on these 1,000 users? Its balanced accuracy? Its recall? Compared
+   to that baseline, how much better is the analyst's model?
+
+c) Explain the model's recall and precision to Sarah in plain words, using the
+   retention offer.
+
+```{r q3_2}
+# Your calculations here
+
+```
+
+*Your answers:*
+
+### Question 3.3: Choosing the cutoff
+
+The analyst tried lower cutoffs on the same 1,000 test users:
+
+| Cutoff | Flagged | TP | FP | Recall | Precision | Error rate |
+|---|---|---|---|---|---|---|
+| 0.5 | 218 | 130 | 88 | 48.0% | 59.6% | 22.9% |
+| 0.3 | 425 | 202 | 223 | 74.5% | 47.5% | 29.2% |
+| 0.2 | 543 | 229 | 314 | 84.5% | 42.2% | 35.6% |
+
+Each retention offer costs CloudFit **\$10**, and every flagged user gets one.
+Suppose every churner who receives an offer stays, and a user who stays is worth
+**\$40** to CloudFit. A non-churner who gets an offer would have stayed anyway, so
+the \$10 is wasted.
+
+a) Write the campaign's profit in terms of TP and FP, and compute it for all
+   three cutoffs.
+
+b) Which cutoff would you recommend? Is it the cutoff with the lowest error
+   rate? Explain why the two disagree.
+
+```{r q3_3}
+# Your calculations here
+
+```
+
+*Your answers:*
+
+---
+
+## Part 4: Logistic Regression and KNN (15 minutes)
+
+### Question 4.1: Inside the logistic regression
+
+Here are the coefficients of the logistic regression from Question 3.2:
+
+```
+            Estimate Std. Error z value Pr(>|z|)
+(Intercept)   1.2211     0.0856   14.27   <2e-16 ***
+workouts     -0.6001     0.0324  -18.50   <2e-16 ***
+premium      -0.7340     0.0517  -14.19   <2e-16 ***
+```
+
+a) Without computing anything: are users who work out more **more** or
+   **less** likely to cancel? How do you know?
+
+b) Compute the predicted probability of cancelling for (i) a user with 1
+   workout a week and no premium features, and (ii) a user with 5 workouts a
+   week and 2 premium features. (Recall that
+   $p = \dfrac{e^{z}}{1 + e^{z}}$, where $z$ is the linear combination.)
+
+c) The linear regression in Question 3.1 gave the user with 7 workouts and 2
+   premium features a negative "probability." Could this model ever do that?
+   Why or why not?
+
+```{r q4_1}
+# Your calculations here
+
+```
+
+*Your answers:*
+
+### Question 4.2: Choosing K
+
+The analyst also tried KNN on the same 4,000 training and 1,000 test users,
+using all four predictors:
+
+| K | Training error rate | Test error rate |
+|---|---|---|
+| 1 | 0.0% | 31.4% |
+| 5 | 18.6% | 25.9% |
+| 25 | 21.1% | 22.8% |
+| 100 | 22.6% | 22.2% |
+| 300 | 22.7% | 23.3% |
+
+a) Why is the training error rate **exactly** 0 when K = 1?
+
+b) On the test set, 27.1% of users cancel. Compare K = 1's test error rate to
+   the predict-nobody-cancels baseline. What does that tell you?
+
+c) Which K would you choose? As K rises from 1 to 300, describe what happens to
+   bias and to variance.
+
+d) Before running KNN, the analyst **standardized** all four predictors. Why?
+   If they hadn't, which predictor(s) would mostly decide who counts as a
+   "nearest neighbor," and why? If a logistic regression included `age`,
+   would its predictions change if `age` were measured in months instead of
+   years?
+
+*Your answers:*
+
+---
+
+## Part 5: Cross-Validation (10 minutes)
+
+To compare models fairly, the analyst ran **5-fold cross-validation** on all
+5,000 users (cutoff 0.5 throughout):
+
+| Model | Mean CV error rate | SD across folds | Mean CV F1 | SD across folds |
+|---|---|---|---|---|
+| Logistic regression | 23.1% | 1.3% | 0.50 | 0.05 |
+| KNN, K = 5 | 25.5% | 1.3% | 0.48 | 0.03 |
+| KNN, K = 25 | 23.2% | 0.7% | 0.49 | 0.03 |
+
+a) In Part 3, the model was scored on a single split: 4,000 training users and
+   1,000 test users. What does 5-fold cross-validation do differently, and
+   why is it a more trustworthy comparison?
+
+b) Logistic regression and KNN with K = 25 differ by 0.1 percentage points in
+   mean error rate. Is that a meaningful difference? Use the SD column.
+
+c) Which model would you recommend to Sarah? Give one reason that isn't about
+   the error rate.
+
+*Your answers:*
+
+---
+
+## Part 6: Report to Sarah (5 minutes)
+
+Write a 4–6 sentence summary for Sarah. Include: which model you recommend for
+flagging likely cancellers, how much better it is than the
+predict-nobody-cancels baseline, which cutoff you'd use for the retention
+campaign and why, and one caution about your results.
+
+*Your answer:*
